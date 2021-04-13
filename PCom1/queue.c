@@ -41,3 +41,11 @@ void *queue_deq(queue q)
     return temp;
   }
 }
+
+void *queue_top(queue q)
+{
+  assert(!queue_empty(q));
+  {
+    return q->head->element;
+  }
+}

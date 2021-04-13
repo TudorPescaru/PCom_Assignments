@@ -176,3 +176,6 @@ struct arp_header* parse_arp(void *buffer);
  */
 int hwaddr_aton(const char *txt, uint8_t *addr);
 
+uint16_t ip_checksum(void* vdata,size_t length);
+
+void build_ethhdr(struct ether_header *eth_hdr, uint8_t *sha, uint8_t *dha, unsigned short type);
