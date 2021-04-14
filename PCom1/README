@@ -1,0 +1,57 @@
+Pescaru Tudor-Mihai 321CA 2020
+
+Pentru parsarea tabelei de routare am folosit o functie care citeste de pe 
+fiecare linie din fisierul dat entry-ul si il sparge in componentele sale care 
+sunt mai apoi convertite de la string la int si stocate intr-o structura
+de tip rtable_entry. Aceste entry-uri sunt la randul lor stocate in structura 
+ce va contine toata tabela de routare.
+Pentru implementarea tabelei de routare am utilizat o structura de tip 
+hashtable cu 33 de bucket-uri, fiecare corespunzand unei lungimi de prefix, de 
+la 0 la 32, acestea fiind determinate pe baza subnet mask-ului. Aceste 
+bucket-uri contin array-uri de rtable_entry-uri ce se redimensioneaza prin 
+dublarea capacitatii de stocare la umplerea capacitatii vechi pentru a utiliza 
+in mod eficient memoria. 
+Dupa citirea fiecarui entry, se va calcula lungimea de prefix pe baza subnet 
+mask-ului citit, pentru a determina bucket-ul in care trebuie adaugat entry-ul. 
+Dupa parsarea intregii tabele se va trece prin toate bucket-urile, iar cele ce 
+contin entry-uri vor fi sortate crescator dupa prefix. Aceasta metoda de 
+stocare va permite cautarea celei mai bune rute pentru un packet intr-o 
+complexitate mai buna de O(N). Pentru a realiza cautarea, se va trece prin 
+bucket-uri, de la bucket-ul cu prefixul cel mai mare la cel cu prefixul cel mai 
+mic. In cadrul fiecarui bucket, se va realiza o cautare binara pentru gasirea 
+prefixului. Complexitatea va fi astfel O(logN) pentru gasirea celei mai bune 
+rute.
+
+Tabela de ARP va fi stocata ca un array de arptable_entry-uri ce se va 
+redimensiona dupa acelasi sistem precizat anterior pentru utilizarea eficienta 
+a memoriei. Cautarea in tabela de ARP a fost realizata intr-o complexitate 
+liniara. In cazul unui ARP REQUEST catre router, acesta va raspunde cu MAC-ul 
+interfetei pe care pachetul a fost primit si cu IP-ul acelei interfete. In 
+cazul unui ARP REPLY, se va adauga combinatia de adresa IP sursa si adresa MAC 
+sursa ca entry in tabela ARP. Mai apoi se va verifica coada de pachete. In 
+cazul in care primul pachet din coada este unul ce trebuie trimis mai departe 
+device-ului care a trimis reply-ul, acest pachet va fi scos din coada, mac-ul 
+lui destinatie va fi updatat cu cel primit in reply si va fi trimis. Acest 
+proces va fi repetat pana cand pachetul ajuns in fata cozii trebuie trimis mai 
+departe unui alt device.
+
+Pentru partea de ICMP, in cazul in care router-ul primeste un request adresat 
+lui, acesta va trimite un raspuns. In cazul in care pachetul ajuns la router 
+are un TTL mai mic sau egal cu 1 se va trimite un mesaj ICMP de eroare de tip 
+TIME EXCEDED iar in cazul in care o ruta de dirijare mai departe nu poate fi 
+gasita se va trimite un mesaj ICMP de eroare de tip DESTINATION UNREACHABLE.
+
+In partea de rutare, primul pas va fi verificarea checksum-ului. In caz de 
+checksum gresit pachetul va fi aruncat. In continuare se va decrementa TTL-ul, 
+se va recalcula checksum-ul, si se va cauta in tabela de rutare cea mai buna 
+ruta pentru a trimite pachetul mai departe. In cazul in care aceasta este 
+gasita se vor updata MAC-ul sursa, cu cel al intrefetei de exit, MAC-ul 
+destinatie, cu cel al next-hop-ului si se va trimite pachetul pe interfata de 
+exit. In caz contrar, pachetul se va copia in memorie si va fi plasat in coada 
+de asteptare pana cand MAC-ul destinatie va fi aflat prin intermediul unui 
+ARP REPLY. De asemenea, se va face un ARP REQUEST, cu MAC-ul interfetei de exit 
+ca MAC sursa, cu MAC-ul de broadcast ca MAC destinatie si acest request va fi 
+trimis pe interfata de exit, catre IP-ul next-hop-ului si cu IP-ul interfetei 
+de exit drept IP sursa.
+
+Cand router-ul isi termina executia toata memoria alocata va fi eliberata.
