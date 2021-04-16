@@ -55,3 +55,16 @@ trimis pe interfata de exit, catre IP-ul next-hop-ului si cu IP-ul interfetei
 de exit drept IP sursa.
 
 Cand router-ul isi termina executia toata memoria alocata va fi eliberata.
+
+Am creeat functia queue_top in codul pentru coada, pentru a facilita accesarea 
+primului element din coada fara a-l scoate. In skel.h am inclus antetul 
+functiilor ip_checksum, pentru verificarea checksum-ului unui header IP si 
+build_ethhdr, pentru a facilita constructia mai eleganta a unui header ethernet.
+
+Am implementat, de asemenea si algoritmul de update incremental al 
+checksum-ului pentru un header IP, folosind ecuatia 4 descrisa in RFC 1624, 
+"HC' = HC - ~m - m'", unde HC' este noua valoare a checksum-ului, HC este 
+vechiul checksum, m este valoarea TTL-ului inainte de decrementare iar m' este 
+valoarea TTL-ului dupa decrementare. Pentru a obtine aceleasi rezultate cu 
+cele prezentate in exemplele din RFC 1624 a fost necesara scaderea 
+checksum-ului nou cu 1.
