@@ -30,10 +30,10 @@ interfetei pe care pachetul a fost primit si cu IP-ul acelei interfete. In
 cazul unui ARP REPLY, se va adauga combinatia de adresa IP sursa si adresa MAC 
 sursa ca entry in tabela ARP. Mai apoi se va verifica coada de pachete. In 
 cazul in care primul pachet din coada este unul ce trebuie trimis mai departe 
-device-ului care a trimis reply-ul, acest pachet va fi scos din coada, mac-ul 
-lui destinatie va fi updatat cu cel primit in reply si va fi trimis. Acest 
-proces va fi repetat pana cand pachetul ajuns in fata cozii trebuie trimis mai 
-departe unui alt device.
+unui device de la care s-a primit un reply ARP si a carui adresa MAC se afla in 
+tabela ARP, acel pachet va fi completat cu MAC-ul lipsa si va fi trimis mai 
+departe. Acest proces se repeta pana cand la fata cozii ajunge un pachet ce 
+nu respecta conditia de mai sus si deci nu poate fi trimis mai departe.
 
 Pentru partea de ICMP, in cazul in care router-ul primeste un request adresat 
 lui, acesta va trimite un raspuns. In cazul in care pachetul ajuns la router 

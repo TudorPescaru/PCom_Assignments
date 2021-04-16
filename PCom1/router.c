@@ -368,12 +368,14 @@ int main(int argc, char *argv[]) {
 											sizeof(struct ether_header));
 				rtable_entry *best_route = get_best_route(my_rtable,
 															p_ip_hdr->daddr);
+				arptable_entry *entry = get_mac(my_arptable, 
+												best_route->next_hop);
 				// Check if ARP REPLY was received from packet next-hop
-				while (best_route->next_hop == arp_hdr->spa) {
+				while (entry != NULL) {
 					// Remove packet from queue
 					p = (packet*)queue_deq(q);
 					// Update packet destination mac and send 
-					memcpy(p_eth_hdr->ether_dhost, arp_hdr->sha, ETH_ALEN);
+					memcpy(p_eth_hdr->ether_dhost, entry->mac, ETH_ALEN);
 					send_packet(best_route->interface, p);
 					free(p);
 					// Check if there are more packets in queue
@@ -383,6 +385,7 @@ int main(int argc, char *argv[]) {
 					// Get next packet from queue
 					p = (packet*)queue_top(q);
 					best_route = get_best_route(my_rtable, p_ip_hdr->daddr);
+					entry = get_mac(my_arptable, best_route->next_hop);
 				}
 				continue;
 			}
