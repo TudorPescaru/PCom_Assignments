@@ -1,8 +1,12 @@
-// Pescaru Tudor-Mihai 321CA 2020
+/**
+ * @author Pescaru Tudor-Mihai 321CA 2020
+ */
 #include <queue.h>
 #include "skel.h"
 
-// Routing Table Entry Struct
+/**
+ * Routing Table Entry Struct
+ */
 typedef struct rtable_entry {
 	uint32_t prefix;
 	uint32_t next_hop;
@@ -10,32 +14,42 @@ typedef struct rtable_entry {
 	int interface;
 } __attribute__((packed)) rtable_entry;
 
-// ARP Table Entry Struct
+/**
+ * ARP Table Entry Struct
+ */
 typedef struct arptable_entry {
 	uint32_t ip;
 	uint8_t mac[6];
 } __attribute__((packed)) arptable_entry;
 
-// Bucket Struct used for holding all rtable entries with a certain mask
+/** 
+ * Bucket Struct used for holding all rtable entries with a certain mask
+ */
 typedef struct bucket {
 	rtable_entry **entries;
 	int size;
 	int capacity;
 } bucket;
 
-// Routing Table Struct used to store the entire routing table
+/**
+ * Routing Table Struct used to store the entire routing table
+ */
 typedef struct rtable {
 	bucket **buckets;
 } rtable;
 
-// ARP Table Struct used for storing all ARP entries
+/**
+ * ARP Table Struct used for storing all ARP entries
+ */
 typedef struct arptable {
 	arptable_entry **entries;
 	int size;
 	int capacity;
 } arptable;
 
-// Allocate space and initialise for routing table
+/**
+ * Allocate space and initialise for routing table
+ */
 rtable* init_rtable() {
 	rtable *my_rtable = (rtable*)malloc(sizeof(rtable));
 	// Allocate 33 buckets for prefix lengths from /0 to /32
@@ -52,7 +66,9 @@ rtable* init_rtable() {
 	return my_rtable;
 }
 
-// Allocate space and initialise ARP table
+/**
+ * Allocate space and initialise ARP table
+ */
 arptable* init_arptable() {
 	arptable* my_arptable = (arptable*)malloc(sizeof(arptable));
 	my_arptable->size = 0;
@@ -63,7 +79,11 @@ arptable* init_arptable() {
 	return my_arptable;
 }
 
-// Free allocated space for given rtable
+/**
+ * Free allocated space for given rtable
+ * 
+ * @param my_rtable structure containing routing table
+ */
 void free_rtable(rtable *my_rtable) {
 	for (int i = 0; i < 33; i++) {
 		bucket *bucket = my_rtable->buckets[i];
@@ -77,7 +97,11 @@ void free_rtable(rtable *my_rtable) {
 	free(my_rtable);
 }
 
-// Free allocated space for given arptable
+/**
+ * Free allocated space for given arptable
+ * 
+ * @param my_arptable structure containing ARP table
+ */
 void free_arptable(arptable *my_arptable) {
 	for (int i = 0; i < my_arptable->size; i++) {
 		free(my_arptable->entries[i]);
@@ -86,7 +110,13 @@ void free_arptable(arptable *my_arptable) {
 	free(my_arptable);
 }
 
-// Add IP and MAC as entry in arptable
+/**
+ *  Add IP and MAC as entry in arptable
+ * 
+ * @param my_arptable structure containing ARP table
+ * @param ip IP address to be added to ARP table
+ * @param mac MAC address to be added to ARP table
+ */
 void add_to_arptable(arptable *my_arptable, uint32_t ip, uint8_t *mac) {
 	// Allocate space for new entry
 	arptable_entry *entry = (arptable_entry*)malloc(sizeof(arptable_entry));
@@ -104,7 +134,13 @@ void add_to_arptable(arptable *my_arptable, uint32_t ip, uint8_t *mac) {
 	}
 }
 
-// Get arp table entry based on given IP
+/**
+ * Get arp table entry based on given IP
+ * 
+ * @param my_arptable structure containing ARP table
+ * @param ip IP to be looked up in ARP table
+ * @return MAC address of given IP
+ */
 arptable_entry* get_mac(arptable *my_arptable, uint32_t ip) {
 	for (int i = 0; i < my_arptable->size; i++) {
 		if (my_arptable->entries[i]->ip == ip) {
@@ -115,14 +151,25 @@ arptable_entry* get_mac(arptable *my_arptable, uint32_t ip) {
 	return NULL;
 }
 
-// Compare two routing table entries based on prefixes to sort them
+/** 
+ * Compare two routing table entries based on prefixes to sort them
+ * 
+ * @param a routing table entry to be compared
+ * @param b routing table entry to be compared
+ * @return result of comparison
+ */
 int entry_compare(const void *a, const void *b) {
 	rtable_entry *entry_a = *(rtable_entry**)a;
 	rtable_entry *entry_b = *(rtable_entry**)b;
 	return (entry_a->prefix - entry_b->prefix);
 }
 
-// Calculate prefix length from given subnet mask
+/**
+ * Calculate prefix length from given subnet mask
+ * 
+ * @param ip_addr subnet mask to be converted to prefix length
+ * @return prefix length of given subnet mask
+ */
 int get_prefix_length(uint32_t ip_addr) {
     uint32_t ip = ntohl(ip_addr);
     int prefix = 0;
@@ -133,14 +180,24 @@ int get_prefix_length(uint32_t ip_addr) {
     return prefix;
 }
 
-// Calculate subnet mask from given prefix length
+/**
+ * Calculate subnet mask from given prefix length
+ * 
+ * @param prefix prefix length to be converted to subnet mask
+ * @return subnet mask corresponding to prefix length
+ */
 uint32_t get_subnet_mask(int prefix) {
     uint32_t ip = ((1 << prefix) - (prefix == 32 ? 2 : 1)) << (32 - prefix);
     ip = htonl(ip);
     return ip;
 }
 
-// Parse routing table from given filename
+/**
+ * Parse routing table from given filename
+ * 
+ * @param my_rtable structure in which to store parsed routing table
+ * @param rtable_file filename from which to read routing table
+ */
 void parse_rtable(rtable *my_rtable, char *rtable_file) {
 	FILE *f = fopen(rtable_file, "r");
 	DIE(f == NULL, "rtable file open");
@@ -186,7 +243,13 @@ void parse_rtable(rtable *my_rtable, char *rtable_file) {
 	fclose(f);
 }
 
-// Get the best route from the routing table for a given destiation IP
+/**
+ * Get the best route from the routing table for a given destiation IP
+ * 
+ * @param my_rtable structure containing routing table
+ * @param dest_ip destination IP for which to find route
+ * @return routing table entry containing best route to destination IP
+ */
 rtable_entry* get_best_route(rtable *my_rtable, uint32_t dest_ip) {
 	// Iterate through buckets from largest mask to lowest to get LMP
 	for (int i = 32; i >= 0; i--) {
@@ -216,6 +279,25 @@ rtable_entry* get_best_route(rtable *my_rtable, uint32_t dest_ip) {
 	return NULL;
 }
 
+/**
+ * Calculate updated IP header checksum using incremental update algorithm
+ * as described in RFC 1624
+ * 
+ * @param ip_hdr IP header structure for which to update checksum
+ * @return updated checksum for IP header
+ */
+uint16_t calculate_checksum(struct iphdr *ip_hdr) {
+	uint16_t checksum = (ip_hdr->check - ~(ip_hdr->ttl + 1) - ip_hdr->ttl) - 1;
+	return checksum;
+}
+
+/**
+ * Main entrypoint of router operation
+ * 
+ * @param argc number of command-line arguments
+ * @param argv array of arguments; routing table file name, router-router 
+ * interface and router-host interfaces
+ */
 int main(int argc, char *argv[]) {
 	packet m;
 	int rc;
@@ -318,8 +400,7 @@ int main(int argc, char *argv[]) {
 		}
 		// Decrement TTL and update checksum
 		ip_hdr->ttl--;
-		ip_hdr->check = 0;
-		ip_hdr->check = ip_checksum(ip_hdr, sizeof(struct iphdr));
+		ip_hdr->check = calculate_checksum(ip_hdr);
 		// Try to get route for packet from routing table
 		rtable_entry *best_route = get_best_route(my_rtable, ip_hdr->daddr);
 		// If no route was found send DESTINATION UNREACHABLE message

@@ -176,6 +176,21 @@ struct arp_header* parse_arp(void *buffer);
  */
 int hwaddr_aton(const char *txt, uint8_t *addr);
 
+/**
+ * @brief calculate checksum of IP header
+ * 
+ * @param vdata pointer to IP header structure
+ * @param length size of IP header
+ * @return new checksum of IP header
+ */
 uint16_t ip_checksum(void* vdata,size_t length);
 
+/**
+ * @brief
+ * 
+ * @param eth_hdr pointer to ether header to be built
+ * @param sha source MAC address
+ * @param dha destination MAC address
+ * @param type type of ether header
+ */
 void build_ethhdr(struct ether_header *eth_hdr, uint8_t *sha, uint8_t *dha, unsigned short type);
