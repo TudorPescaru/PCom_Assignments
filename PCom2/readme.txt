@@ -6,31 +6,34 @@ Protocolul de nivel aplicatie definit si utilizat in implementarea temei se
 bazeaza pe o serie de mesaje standard ce sunt definite printr-un tip si un 
 payload de mici dimensiuni ce va contine doar cateva informatii suplimentare 
 dupa caz, in functie de tipul mesajului. Mesajele standard din cadrul 
-protocolului sunt de 6 tipuri iar fiecare are un rol diferit in comunicarea 
+protocolului sunt de 7 tipuri iar fiecare are un rol diferit in comunicarea 
 dintre server si clienti. Primul tip de mesaj este mesajul de exit, acesta 
 fiind trimis de server tuturor clientilor conectati, atunci cand serverul 
 primeste comanda de exit. Un alt tip de mesaj este cel de confirmare, trimis in 
-urma unei cereri de subscribe/unsubscribe de la clientii TCP. Clienti se vor 
-folosii de mesaje de tip ID pentru a-si trimite ID-ul la server, de mesaje de 
-tip SUB/UNSUB pentru a realiza operatiile de subscribe si unsubscribe. In cazul 
-mesajului de tip ID, acesta contine ID-ul clientului in payload-ul sau. Pentru 
-mesajele de SUB si UNSUB, payload-ul mesajului contine o structura cu numele 
-topic-ului la care sa da subscribe/unsubscribe si o valoare de SF pentru 
-operatia de subscribe. In cazul mesajelor de exit sau de confirmare, payload-ul 
-mesajului este gol deoarece nu este necesara transmiterea altor informatii. 
-Ultimul tip de mesaj, cel ce sta la baza comunicatiei dintre server si client 
-este mesajul de tip incoming packet sau PKT asa cum este referentiat in cod. 
-Acest mesaj are rolul de a transmite clientului ca urmeaza sa primeasca, 
-imediat dupa, un packet ce provine de la clientii UDP. In cadrul payload-ului 
-acestui mesaj se afla o structura de tip size care va contine dimensiunea 
-totala a packet-ului ce urmeaza sa fie primit, cat si dimensiunea individuala a 
-topic-ului si a continutului din packet deoarece acestea sunt singurele doua 
-campuri cu lungimi variabile. Clientul se va folosii de dimensiunea transimsa 
-pentru a mai face un receive prin care va primi packet-ul, in forma sa cat mai 
-compresata. Apoi, se va folosii de celelalte dimensiuni primite cat si de 
-dimensiunile standard ale celorlalte componente din packet pentru a-l 
-reconstrui intr-o structura mai usor utilizabila. Aceasta implementare asigura 
-o comunicare cat mai eficienta intre clientii TCP si server.
+urma unei cereri de subscribe/unsubscribe de la clientii TCP. Opusul mesajului 
+de tip confirmare este cel de tip eroare. Acesta este utilizat pentru a semnala 
+clientii de erori produse in urma cererilor de subscribe sau unsubscribe. 
+Clienti se vor folosii de mesaje de tip ID pentru a-si trimite ID-ul la server, 
+de mesaje de tip SUB/UNSUB pentru a realiza operatiile de subscribe si 
+unsubscribe. In cazul mesajului de tip ID, acesta contine ID-ul clientului in 
+payload-ul sau. Pentru mesajele de SUB si UNSUB, payload-ul mesajului contine o 
+structura cu numele topic-ului la care sa da subscribe/unsubscribe si o valoare 
+de SF pentru operatia de subscribe. In cazul mesajelor de exit sau de 
+confirmare, payload-ul mesajului este gol deoarece nu este necesara 
+transmiterea altor informatii. Ultimul tip de mesaj, cel ce sta la baza 
+comunicatiei dintre server si client este mesajul de tip incoming packet sau 
+PKT asa cum este referentiat in cod. Acest mesaj are rolul de a transmite 
+clientului ca urmeaza sa primeasca, imediat dupa, un packet ce provine de la 
+clientii UDP. In cadrul payload-ului acestui mesaj se afla o structura de tip 
+size care va contine dimensiunea totala a packet-ului ce urmeaza sa fie primit, 
+cat si dimensiunea individuala a topic-ului si a continutului din packet 
+deoarece acestea sunt singurele doua campuri cu lungimi variabile. Clientul se 
+va folosii de dimensiunea transimsa pentru a mai face un receive prin care va 
+primi packet-ul, in forma sa cat mai compresata. Apoi, se va folosii de 
+celelalte dimensiuni primite cat si de dimensiunile standard ale celorlalte 
+componente din packet pentru a-l reconstrui intr-o structura mai usor 
+utilizabila. Aceasta implementare asigura o comunicare cat mai eficienta intre 
+clientii TCP si server.
 
 Debug mode
 
@@ -86,11 +89,14 @@ un client cu acelasi ID in baza de date dar acesta nu este conectat se va
 realiza procesul de reconectare. Daca ID-ul nu exista deja in baza de date se 
 va creea un nou client cu acest ID si va fi adaugat in baza de date.
 Pe socket-urile clientilor se pot primi doar mesaje de subscribe sau 
-unsubscribe. Aceste mesaje sunt procesate fara verificari suplimentare deoarece 
-acelea sunt facute client-side pentru a mai reduce din traficul pe retea. 
-Procesul de subscribe/unsubscribe se face simplu, prin adaugarea/eliminarea 
-topic-ului din dictionarul intern al clientului si prin adaugarea/eliminarea 
-client-ului din setul de clienti subscribed corespunzatori topic-ului.
+unsubscribe. Inainte de procesarea cererii de subscribe sau unsubscribe se va 
+face o verificare pentru a determina validitatea cererii. Pentru operatia de 
+subscribe aceasta se poate face pe un topic care nu este deja subscribed sau pe 
+un topic deja subscribed doar in cazul in care valoarea SF noua difera de cea 
+precedenta, aceasta functionalitate avand ca scop update-ul usor al valorii SF 
+pentru un topic. Operatia de unsubscribe va fi valida doar daca topic-ul pentru 
+care se cere unsubscribe-ul este deja subscribed. In urma acestor verificari, 
+serverul va trimite un mesaj de eroare sau unul de confirmare inapoi la client.
 In cazul in care un client isi inchide conexiunea, starea sa din baza de date 
 este modificata corespunzator iar socket-ul sau este eliminat din lista de 
 socket-uri pe care se face ascultarea pentru trafic.
@@ -102,13 +108,9 @@ executiei serverului pentru acei clienti care nu s-au mai conectat.
 Subscriber
 
 Subscriber-ul se va folosi de un singur socket TCP pentru a se conecta la 
-server. De asemenea subscriber-ul va folosi un dictionar de topic-uri, in care 
-vor fi stocate perechi intre topic-urile la care clientul este abonat si 
-valoarea SF pentru fiecare, pentru a realiza verificari client-side pentru 
-comenzile de subscribe sau unsubscribe. Imediat dupa conectarea la server, 
-clientul va trimite un mesaj ce va contine ID-ul sau. Ciclul de rulare al 
-clientului incepe prin selectarea file descriptor-ilor de pe care s-a primit 
-informatie.
+server. Imediat dupa conectarea la server, clientul va trimite un mesaj ce va 
+contine ID-ul sau. Ciclul de rulare al clientului incepe prin selectarea file 
+descriptor-ilor de pe care s-a primit informatie.
 In cazul in care s-au primit informatii de la server, acestea vor fi un 
 mesaj standard de exit sau de incoming packet. In cazul in care mesajul este 
 unul de exit se va realiza secventa de exit si clientul se va opri. In cazul in 
@@ -125,10 +127,7 @@ topic-ul introdus respecta limita de lungime. In cazul comenzii de subscribe se
 va verifica si daca valoarea introdusa pentru SF este doar 0 sau 1. Atat pentru 
 comanda de subscribe cat si pentru comanda de unsubscribe, orice alt input 
 introdus in plus fata de cel necesar va fi eliminat pentru a nu afecta comenzi 
-viitoare. Se va putea da subscribe pe un topic pe care deja s-a dat subscribe, 
-doar in cazul in care valoarea pentru SF difera de cea introdusa precedent, caz 
-in care serverul doar va modifica valoarea SF-ului. Se va putea da unsubscribe 
-de la un topic doar daca s-a dat deja subscribe la acesta. In urma unei 
-operatii de subscribe sau unsubscribe se va astepta un mesaj de confirmare de 
-la server inainte de a afisa confirmarea utilizatorului.
+viitoare. In urma verificarii formatului comenzii se va trimite o cerere 
+specifica comenzii primite, la server. Se va astepta raspunsul serverului 
+pentru a determina daca comanda s-a putut realiza cu succes.
 La finalul rularii clientul isi va inchide conexiunea catre server.

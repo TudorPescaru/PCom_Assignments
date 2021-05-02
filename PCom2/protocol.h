@@ -32,6 +32,7 @@
 #define ID_MSG 3
 #define SUB_MSG 4
 #define UNSUB_MSG 5
+#define ERR_MSG 6
 
 // Define max client request buffer for TCP socket listen
 #define MAX_CLIENTS 10

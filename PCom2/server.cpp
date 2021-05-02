@@ -51,9 +51,6 @@ class Client {
 
     // Reconnect client and send all messages received while disconnected
     void reconnect(int fd) {
-        struct proto_msg msg;
-        struct size_packet sz;
-        char buffer[PACKET_LEN];
         // Update fd of socket connection
         this->fd = fd;
         // Set connected state to true
@@ -64,54 +61,8 @@ class Client {
             struct packet *pkt = sf_queue.front();
             sf_queue.pop();
 
-            // Create an incoming packet protocol message
-            memset(&msg, 0, MSG_LEN);
-            msg.msg_type = PKT_MSG;
-
-            // Populate sizes struct with sizes of packet components
-            // and total packet size
-            sz.topic_size = strlen(pkt->udp_msg.topic) < TOPIC_LEN ?
-                            strlen(pkt->udp_msg.topic) + 1 : TOPIC_LEN;
-
-            // Set content size based on data type
-            if (pkt->udp_msg.data_type == 0) {
-                sz.content_size = sizeof(char) + sizeof(uint32_t);
-            } else if (pkt->udp_msg.data_type == 1) {
-                sz.content_size = sizeof(uint16_t);
-            } else if (pkt->udp_msg.data_type == 2) {
-                sz.content_size = sizeof(char) + sizeof(uint32_t)
-                                    + sizeof(uint8_t);
-            } else if (pkt->udp_msg.data_type == 3) {
-                sz.content_size = strlen(pkt->udp_msg.content) < CONTENT_LEN ?
-                                strlen(pkt->udp_msg.content) + 1 : CONTENT_LEN;
-            }
-
-            // Load packet components into buffer without padding
-            sz.to_receive = 0;
-            memset(buffer, 0, PACKET_LEN);
-            memcpy(buffer + sz.to_receive, &(pkt->udp_client_ip),
-                    sizeof(struct in_addr));
-            sz.to_receive += sizeof(struct in_addr);
-            memcpy(buffer + sz.to_receive, &(pkt->udp_client_port),
-                    sizeof(uint16_t));
-            sz.to_receive += sizeof(uint16_t);
-            memcpy(buffer + sz.to_receive, pkt->udp_msg.topic, sz.topic_size);
-            sz.to_receive += sz.topic_size;
-            memcpy(buffer + sz.to_receive, &(pkt->udp_msg.data_type),
-                    sizeof(uint8_t));
-            sz.to_receive += sizeof(uint8_t);
-            memcpy(buffer + sz.to_receive, pkt->udp_msg.content,
-                    sz.content_size);
-            sz.to_receive += sz.content_size;
-
-            // Load sizes struct into protocol message payload and send message
-            memcpy(msg.payload, &sz, SIZEPACKET_LEN);
-            int ret = send(this->fd, &msg, MSG_LEN, 0);
-            DIE(ret < 0, "send message");
-
-            // Send buffer
-            ret = send(this->fd, buffer, sz.to_receive, 0);
-            DIE(ret < 0, "send packet");
+            // Send the packet to the client
+            send_packet(*pkt);
 
             // Free memory used to store packet
             delete pkt;
@@ -133,13 +84,17 @@ class Client {
         topics.erase(topic);
     }
 
+    bool client_has_topic(std::string topic) {
+        return topics.find(topic) != topics.end();
+    }
+
     // Check if given topic has sf turned on
     bool topic_has_sf(std::string topic) {
         return topics[topic];
     }
 
     // Store given packet in the queue if client is disconnected
-    void store_packet(struct packet pkt) {
+    void store_packet(const struct packet &pkt) {
         struct packet *to_add = new packet();
         memset(to_add, 0, PACKET_LEN);
         memcpy(to_add, &pkt, PACKET_LEN);
@@ -147,7 +102,7 @@ class Client {
     }
 
     // Send given packet
-    void send_packet(struct packet pkt) {
+    void send_packet(const struct packet &pkt) {
         struct proto_msg msg;
         struct size_packet sz;
         char buffer[PACKET_LEN];
@@ -201,15 +156,25 @@ class Client {
     }
 };
 
-// Send exit protocol message to given socket fd
-void send_exit(int fd) {
+// Send protocol message to given client
+void send_msg(int fd, int type) {
     struct proto_msg msg;
 
     memset(&msg, 0, MSG_LEN);
-    msg.msg_type = EXIT_MSG;
+    msg.msg_type = type;
 
     int ret = send(fd, &msg, MSG_LEN, 0);
-    DIE(ret < 0, "send exit signals");
+    DIE(ret < 0, "send protocol message");
+}
+
+// Clear any unread input so it does not interfere with other commands
+void clear_stdin() {
+    char ch;
+
+    // Clear any unread chars
+    while ((ch = std::cin.get()) != '\n' && ch != EOF) {
+        continue;
+    }
 }
 
 int main(int argc, char **argv) {
@@ -318,7 +283,7 @@ int main(int argc, char **argv) {
                         for (int j = 3; j <= fdmax; j++) {
                             if (FD_ISSET(j, &read_fds)
                                 && j != udpsockfd && j != tcpsockfd) {
-                                send_exit(j);
+                                send_msg(j, EXIT_MSG);
                                 close(j);
                                 FD_CLR(j, &read_fds);
                             }
@@ -326,6 +291,7 @@ int main(int argc, char **argv) {
                         exit_status = true;
                         break;
                     } else if (debug) {
+                        clear_stdin();
                         std::cerr << "Invalid command!\n";
                     }
                 } else if (i == udpsockfd) {
@@ -385,7 +351,7 @@ int main(int argc, char **argv) {
                                 // and close new connection
                                 std::cout << "Client " << cli_id
                                             << " already connected.\n";
-                                send_exit(newsockfd);
+                                send_msg(newsockfd, EXIT_MSG);
                                 close(newsockfd);
                                 FD_CLR(newsockfd, &read_fds);
                                 continue;
@@ -440,38 +406,41 @@ int main(int argc, char **argv) {
                         // Check if message was a subscribe or unsubscribe msg
                         if (msg->msg_type == SUB_MSG) {
                             // Get client id and client object of socket fd
-                            std::string cli_id = fd_to_id[i];
-                            Client *cl = clients[cli_id];
+                            Client *cl = clients[fd_to_id[i]];
+
+                            // Check if topic is already subscribed with same SF
+                            if (cl->client_has_topic(subs->topic) &&
+                                cl->topic_has_sf(subs->topic) == subs->sf) {
+                                // Send error if subscribed with same SF
+                                send_msg(i, ERR_MSG);
+                                continue;
+                            } else {
+                                // Send confirmation if all is ok
+                                send_msg(i, CONF_MSG);
+                            }
 
                             // Subscribe client to received topic
                             cl->subscribe(subs->topic, subs->sf);
                             // Map client to topic
                             topic_to_clients[subs->topic].insert(cl);
-
-                            // Send subscription confirm message to client
-                            struct proto_msg feedback;
-                            memset(&feedback, 0, MSG_LEN);
-                            feedback.msg_type = CONF_MSG;
-
-                            ret = send(i, &feedback, MSG_LEN, 0);
-                            DIE(ret < 0, "send feedback");
                         } else if (msg->msg_type == UNSUB_MSG) {
                             // Get client id and client object of socket fd
-                            std::string cli_id = fd_to_id[i];
-                            Client *cl = clients[cli_id];
+                            Client *cl = clients[fd_to_id[i]];
+
+                            // Check if topic is subscribed to
+                            if (!cl->client_has_topic(subs->topic)) {
+                                // Send error if not subscribed to
+                                send_msg(i, ERR_MSG);
+                                continue;
+                            } else {
+                                // Send confiramtion if all is ok
+                                send_msg(i, CONF_MSG);
+                            }
 
                             // Unsubscribe client to received topic
                             cl->unsubscribe(subs->topic);
                             // Erase client to topic mapping
                             topic_to_clients[subs->topic].erase(cl);
-
-                            // Send unsubscription confirm message to client
-                            struct proto_msg feedback;
-                            memset(&feedback, 0, MSG_LEN);
-                            feedback.msg_type = CONF_MSG;
-
-                            ret = send(i, &feedback, MSG_LEN, 0);
-                            DIE(ret < 0, "send feedback");
                         } else if (debug) {
                             std::cerr << "Unexpected message type received!\n";
                         }
