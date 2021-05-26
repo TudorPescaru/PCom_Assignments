@@ -1,0 +1,61 @@
+Copyright 2021 Pescaru Tudor-Mihai 321CA
+
+Limbaj & Biblioteca JSON
+
+Pentru implementarea acestei teme am ales utilizarea limbajului C, impreuna cu 
+biblioteca de parsare JSON Parson datorita simplitati de utilizare si integrare 
+cu restul codului dar si eficientei. Biblioteca a fost utilizata atat pentru 
+creerea de obiecte JSON cat si pentru parsarea unor string-uri de tip JSON. 
+Biblioteca JSON a fost folosita, in primul rand pentru a facilita creerea 
+payload-ului din continutul request-ului. Acest payload va contine username-ul 
+si parola in cazul comenzilor de register si login sau toate datele despre o 
+carte in cazul comenzii de add_book. Creerea payload-ului se face initializand 
+un JSON_Value din care, mai apoi, va fi extras un JSON_Object, in care se vor 
+adauga toate campurile prin simpla utilizare a metodelor de set. Acest 
+JSON_Value va fi serializat intr-un string pentru atasarea acestuia la request. 
+In cazul parsarii, biblioteca va fi utilizata pentru a parsa si formata in mod 
+pretty toate raspunsurile de la server ce contin si componente JSON. Aici sunt 
+incluse token-ul, mesajele de eroare, informatiile despre o carte si despre 
+toate cartile.
+
+Flow-ul programului
+
+Dupa pornirea programului se va intra intr-o bucla infinita in care se asteapta 
+introducerea de comenzi. Dupa ce o comanda a fost introdusa, aceasta va fi 
+verificata pentru a determina daca este valida. In urma verificarii validitatii 
+se vor afisa prompt-uri pentru restul argumentelor daca sunt necesare argumente 
+suplimentare. In urma obtinerii argumentelor se va creea payload-ul JSON in 
+cazul comenzilor de register, login si add_book sau se va creea path-ul catre o 
+carte in cazul comenzilor get_book si delete_book. Utilizand acest payload se 
+va creea request-ul ce trebuie trimis iar raspunsul primit va fi printat 
+utilizand o functi custom pentru formatare. In cazul comenzilor de login si 
+enter_library se vor extrage din raspunsurile de la server session cookie-ul si 
+token-ul JWT pentru utilizare ulterioara. In momentul executiei fiecarei 
+comenzi se va deschide si ulterior inchide conexiunea la server pentru a 
+rezolva problemele de durata limitata a conexiunii cauzate de timeout-ul de 5 
+secunde setat pe server. In afara de buffer-ul standard pentru citirea de la 
+stdin am utilizat doar memorie alocata dinamic pentru a oferii aplicatiei 
+eficienta din acest punct de vedere. Toata memoria alocata este si dezalocata 
+pentru a evita memory leak-uri.
+
+Afisare Raspuns Server
+
+Raspunsul de la server va fi afisat dupa urmatorul format:
+[Server <COD_STATUS> <TEXT_STATUS>] urmat de "Server says" si continutul JSON 
+al raspunsului afisat in format pretty pentru comenzile ce contin acest element.
+
+Resurse Utilizate
+
+Ca schelet de la care sa incep implementarea am utilizat sursele din 
+laboratorul 10 (buffer.c, helpers.c, request.c completat de mine in cadrul 
+laboratorului) la care am mai adaugat posibilitatea de adaugare a header-ului 
+Authorization pentru token-ul JWT pentru functiile de compute_get_request si 
+compute_post_request, o functie de compute_delete_request ce va realiza 
+requesturile de DELETE si o functie de basic_extract_json_array_response pentru 
+e extrage array-uri de obiecte JSON din raspunsurile serverului.
+
+Verificarea erorilor
+
+Clientul realizeaza verificari doar pentru validitatea comenzilor introduse, 
+iar pentru restul elementelor se bazeaza pe verificarile realizate de server 
+si pe raspunsurile de eroare trimise de acesta.
