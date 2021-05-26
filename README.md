@@ -25,3 +25,11 @@ features a store-and-forward policy which clients can enable for specific
 topics. When a client has store-and-forward enabled for a specific topic, all 
 mesages the client was supposed to receive while disconnected are stored and 
 sent upon reconnection.
+
+### PCom3
+
+This assignment involved creating a client that will interract with a REST 
+API on a web server using a set of commands and GET, POST and DELETE requests. 
+The API simulates an online book library and the reuqests and responses use 
+JSON content. The Parson C library was used provide JSON functionality.
+
