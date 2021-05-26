@@ -287,7 +287,17 @@ int main(int argc, char *argv[]) {
 
             // Show page count prompt and read from stdin
             printf("page_count=");
-            scanf("%d", &page_count);
+            if (scanf("%d", &page_count) != 1 || page_count < 0) {
+                // Skip command if input was not correct
+                printf("Invalid format for page_count!\n");
+                clear_stdin();
+                free(title);
+                free(author);
+                free(genre);
+                free(publisher);
+                free(cmd);
+                continue;
+            }
             clear_stdin();
 
             // Build JSON payload for request with title, author,

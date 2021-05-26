@@ -58,4 +58,6 @@ Verificarea erorilor
 
 Clientul realizeaza verificari doar pentru validitatea comenzilor introduse, 
 iar pentru restul elementelor se bazeaza pe verificarile realizate de server 
-si pe raspunsurile de eroare trimise de acesta.
+si pe raspunsurile de eroare trimise de acesta. Am adaugat si verificarea de 
+corectitudine a input-ului la page_count deoarece server-ul nu returna nicio 
+eroare in cazul valorilor negative sau al caracterelor.
