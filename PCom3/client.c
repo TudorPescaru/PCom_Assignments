@@ -201,11 +201,15 @@ int main(int argc, char *argv[]) {
                 // Parse response JSON content
                 JSON_Value *token = json_parse_string(content);
                 JSON_Object *token_object = json_value_get_object(token);
-                // Extract token from JSON
-                const char *token_string = json_object_get_string(token_object,
+                // Check if JSON has token
+                if (json_object_has_value(token_object, "token")) {
+                    // Extract token from JSON
+                    const char *token_val = json_object_get_string(token_object,
                                                                     "token");
-                jwt = (char*)calloc(strlen(token_string) + 2, sizeof(char));
-                snprintf(jwt, strlen(token_string) + 1, "%s", token_string);
+                    jwt = (char*)calloc(strlen(token_val) + 2, sizeof(char));
+                    snprintf(jwt, strlen(token_val) + 1, "%s", token_val);
+                }
+                // Free JSON value
                 json_value_free(token);
             }
 
